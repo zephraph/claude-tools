@@ -1,2 +1,15 @@
 [tools]
 deno = "2.4.3"
+
+[tasks]
+lint = "deno lint"
+"lint:fix" = "deno lint --fix"
+check = "deno check"
+fmt = "deno fmt"
+"fmt:check" = "deno fmt --check"
+
+[tasks.verify]
+depends = ["lint", "check", "fmt:check"]
+
+[tasks.fix]
+depends = ["lint:fix", "fmt"]
