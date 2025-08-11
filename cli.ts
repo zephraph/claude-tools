@@ -52,6 +52,7 @@ async function initHooks(options: { scope?: string }) {
   const scope = options.scope || "project";
   let claudeDir: string;
   let settingsFile: string;
+  let hooksFile: string;
   let location: string;
   let description: string;
 
@@ -64,6 +65,7 @@ async function initHooks(options: { scope?: string }) {
       }
       claudeDir = join(homeDir, ".claude");
       settingsFile = "settings.json";
+      hooksFile = "hooks.ts";
       location = "user";
       description = "User settings (~/.claude/settings.json)";
       break;
@@ -72,6 +74,7 @@ async function initHooks(options: { scope?: string }) {
     case "project": {
       claudeDir = join(Deno.cwd(), ".claude");
       settingsFile = "settings.json";
+      hooksFile = "hooks.ts";
       location = "project";
       description = "Project settings (./.claude/settings.json)";
       break;
@@ -80,6 +83,7 @@ async function initHooks(options: { scope?: string }) {
     case "local": {
       claudeDir = join(Deno.cwd(), ".claude");
       settingsFile = "settings.local.json";
+      hooksFile = "hooks.local.ts";
       location = "local project";
       description = "Local project settings (./.claude/settings.local.json)";
       break;
@@ -94,16 +98,16 @@ async function initHooks(options: { scope?: string }) {
 
   await ensureDir(claudeDir);
 
-  // Create hooks.ts file
-  const hooksPath = join(claudeDir, "hooks.ts");
+  // Create hooks file
+  const hooksPath = join(claudeDir, hooksFile);
   const hooksExists = await exists(hooksPath);
 
   if (!hooksExists) {
     const hooksTemplate = getHooksTemplate();
     await Deno.writeTextFile(hooksPath, hooksTemplate);
-    console.log(`Created hooks.ts at: ${hooksPath}`);
+    console.log(`Created ${hooksFile} at: ${hooksPath}`);
   } else {
-    console.log(`hooks.ts already exists at: ${hooksPath}`);
+    console.log(`${hooksFile} already exists at: ${hooksPath}`);
   }
 
   // Create or update settings file
@@ -144,7 +148,7 @@ async function initHooks(options: { scope?: string }) {
       `Warning: Could not generate hooks configuration: ${error instanceof Error ? error.message : String(error)}`,
     );
     console.log(
-      `You can run the hooks.ts file manually to generate the configuration.`,
+      `You can run the ${hooksFile} file manually to generate the configuration.`,
     );
 
     // Create empty settings file if it doesn't exist
