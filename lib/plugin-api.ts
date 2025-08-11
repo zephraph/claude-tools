@@ -26,7 +26,6 @@ export interface HooksPlugin {
   name: string;
   version?: string;
   description?: string;
-  permissions?: Permissions;
 
   // Hook handlers
   onPreToolUse?: (
@@ -57,13 +56,19 @@ export interface HooksPlugin {
   onUnload?: () => Promise<void> | void;
 }
 
-class HooksManager {
+export class HooksManager {
   private plugins: HooksPlugin[] = [];
   private permissions?: Permissions = {};
 
-  constructor(config: { plugins: HooksPlugin[]; permissions?: Permissions }) {
-    this.plugins = config.plugins;
-    this.permissions = config.permissions;
+  constructor(config?: { plugins?: HooksPlugin[]; permissions?: Permissions }) {
+    this.plugins = config?.plugins || [];
+    this.permissions = config?.permissions;
+  }
+
+  // Add a plugin to the manager
+  use(plugin: HooksPlugin): this {
+    this.plugins.push(plugin);
+    return this;
   }
 
   // Generate the Claude hooks configuration
@@ -137,7 +142,7 @@ class HooksManager {
       console.error(`Invalid payload for event ${eventType}:`, error);
       return [{
         action: "continue",
-        message: `Invalid payload: ${error.message}`,
+        message: `Invalid payload: ${error instanceof Error ? error.message : String(error)}`,
       }];
     }
 
@@ -203,7 +208,7 @@ class HooksManager {
             );
             results.push({
               action: "continue",
-              message: `Plugin returned invalid response: ${error.message}`,
+              message: `Plugin returned invalid response: ${error instanceof Error ? error.message : String(error)}`,
             });
           }
         }
@@ -211,7 +216,7 @@ class HooksManager {
         console.error(`Plugin ${plugin.name} error:`, error);
         results.push({
           action: "continue",
-          message: `Plugin error: ${error.message}`,
+          message: `Plugin error: ${error instanceof Error ? error.message : String(error)}`,
         });
       }
     }

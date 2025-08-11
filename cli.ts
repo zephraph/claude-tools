@@ -26,7 +26,7 @@ hooks
     try {
       await initHooks(options);
     } catch (error) {
-      console.error("Error initializing hooks:", error.message);
+      console.error("Error initializing hooks:", error instanceof Error ? error.message : String(error));
       Deno.exit(1);
     }
   });
@@ -41,7 +41,7 @@ hooks
       try {
         await runHooksFile(file, event, options.payload);
       } catch (error) {
-        console.error("Error running hooks:", error.message);
+        console.error("Error running hooks:", error instanceof Error ? error.message : String(error));
         Deno.exit(1);
       }
     },
@@ -118,7 +118,7 @@ async function initHooks(options: { scope?: string }) {
       console.log(`Found existing settings at: ${settingsPath}`);
     } catch (error) {
       console.warn(
-        `Warning: Could not parse existing settings: ${error.message}`,
+        `Warning: Could not parse existing settings: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -141,7 +141,7 @@ async function initHooks(options: { scope?: string }) {
     console.log(`Updated hooks configuration in: ${settingsPath}`);
   } catch (error) {
     console.warn(
-      `Warning: Could not generate hooks configuration: ${error.message}`,
+      `Warning: Could not generate hooks configuration: ${error instanceof Error ? error.message : String(error)}`,
     );
     console.log(
       `You can run the hooks.ts file manually to generate the configuration.`,
@@ -256,7 +256,7 @@ try {
     payload = JSON.parse(stdinText);
   }
 } catch (error) {
-  console.warn("Failed to parse stdin as JSON:", error.message);
+  console.warn("Failed to parse stdin as JSON:", error instanceof Error ? error.message : String(error));
 }
 
 // Execute the appropriate hook handler
@@ -269,7 +269,7 @@ if (hooksPlugin["on" + eventType]) {
   } catch (error) {
     result = {
       action: "continue",
-      message: \`Hook execution error: \${error.message}\`
+      message: \`Hook execution error: \${error instanceof Error ? error.message : String(error)}\`
     };
   }
 }
@@ -318,7 +318,7 @@ console.log(JSON.stringify(result));
       }
     }
   } catch (error) {
-    throw new Error(`Failed to run hooks file: ${error.message}`);
+    throw new Error(`Failed to run hooks file: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
