@@ -1,1 +1,3 @@
 .conductor
+bin/*
+!bin/.gitkeep

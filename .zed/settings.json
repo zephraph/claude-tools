@@ -1,11 +1,11 @@
 {
   "languages": {
     "TypeScript": {
-      "language_servers": ["deno", "!typescript-language-server"],
+      "language_servers": ["deno", "!typescript-language-server", "!biome"],
       "formatter": "language_server"
     },
     "TSX": {
-      "language_servers": ["deno", "!typescript-language-server"],
+      "language_servers": ["deno", "!typescript-language-server", "!biome"],
       "formatter": "language_server"
     }
   },

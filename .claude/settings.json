@@ -1,0 +1,86 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/just-be/Code/claude-tools/.conductor/london/bin/claude-hooks run .claude/hooks.ts PreToolUse"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/just-be/Code/claude-tools/.conductor/london/bin/claude-hooks run .claude/hooks.ts PostToolUse"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/just-be/Code/claude-tools/.conductor/london/bin/claude-hooks run .claude/hooks.ts Notification"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/just-be/Code/claude-tools/.conductor/london/bin/claude-hooks run .claude/hooks.ts UserPromptSubmit"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/just-be/Code/claude-tools/.conductor/london/bin/claude-hooks run .claude/hooks.ts Stop"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/just-be/Code/claude-tools/.conductor/london/bin/claude-hooks run .claude/hooks.ts SubagentStop"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/just-be/Code/claude-tools/.conductor/london/bin/claude-hooks run .claude/hooks.ts PreCompact"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/just-be/Code/claude-tools/.conductor/london/bin/claude-hooks run .claude/hooks.ts SessionStart"
+          }
+        ]
+      }
+    ]
+  }
+}
