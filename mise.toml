@@ -10,7 +10,7 @@ lint = "deno lint"
 check = "deno check"
 fmt = "deno fmt"
 "fmt:check" = "deno fmt --check"
-compile = "deno compile -o bin/claude-hooks -A cli.ts"
+compile = "deno compile -o bin/claude-hooks -A --include main.ts --include lib/ cli.ts"
 
 [tasks.verify]
 depends = ["lint", "check", "fmt:check"]

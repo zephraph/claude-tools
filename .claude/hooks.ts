@@ -1,23 +1,25 @@
-import { hooks } from "../main.ts";
-
-export default hooks({
+// Simple hooks configuration that doesn't require imports
+export default {
+  name: "inline-hooks",
+  version: "0.0.0",
+  
   // Deno permissions that are allowed
   permissions: {
     allow: {
       read: ["."],
       write: ["."],
-      env: ["PWD", "HOME", "USER"],
-    },
+      env: ["PWD", "HOME", "USER"]
+    }
   },
 
   // Example hook implementations
   onPreToolUse(payload) {
     console.log(`📝 About to use tool: ${payload.tool_name}`);
-    return { action: "block" };
-  },
-
-  onNotification(payload) {
-    console.log(`🔔 Notification received: ${payload.message}`);
     return { action: "continue" };
   },
-});
+
+  onSessionStart(payload) {
+    console.log(`🚀 Session started in: ${payload?.context?.working_directory || 'unknown'}`);
+    return { action: "continue" };
+  }
+};

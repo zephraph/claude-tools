@@ -3,7 +3,7 @@ import { Command } from "commander";
 import { join } from "@std/path";
 import { ensureDir, exists } from "@std/fs";
 import dedent from "dedent";
-import { HooksConfig } from "./lib/schemas/index.ts";
+import { HooksConfig, type HookResponse } from "./lib/schemas/index.ts";
 
 const program = new Command();
 
@@ -93,6 +93,12 @@ function smartMergeSettings(existing: any, newSettings: HooksConfig): any {
 
 // Helper function to get the absolute path to the claude-hooks binary
 function getClaudeHooksPath(): string {
+  // When running from compiled binary, use the binary path itself
+  if (Deno.execPath().includes('claude-hooks')) {
+    return Deno.execPath();
+  }
+  
+  // When running from source, construct the path
   const currentScript = new URL(import.meta.url).pathname;
   const currentDir = currentScript.replace('/cli.ts', '');
   return join(currentDir, 'bin', 'claude-hooks');
@@ -326,100 +332,38 @@ async function runHooksFile(file: string, event: string, payload?: string) {
       );
     }
 
-    // Extract permissions from the hooks config
-    const permissions = hooksPlugin.permissions || {};
-
-    // Build Deno permission flags from the config
-    const args = ["run"];
-
-    if (permissions.allow) {
-      if (permissions.allow.read) {
-        if (Array.isArray(permissions.allow.read)) {
-          for (const path of permissions.allow.read) {
-            args.push(`--allow-read=${path}`);
-          }
-        } else if (permissions.allow.read === true) {
-          args.push("--allow-read");
-        }
-      }
-
-      if (permissions.allow.write) {
-        if (Array.isArray(permissions.allow.write)) {
-          for (const path of permissions.allow.write) {
-            args.push(`--allow-write=${path}`);
-          }
-        } else if (permissions.allow.write === true) {
-          args.push("--allow-write");
-        }
-      }
-
-      if (permissions.allow.net) {
-        if (Array.isArray(permissions.allow.net)) {
-          for (const host of permissions.allow.net) {
-            args.push(`--allow-net=${host}`);
-          }
-        } else if (permissions.allow.net === true) {
-          args.push("--allow-net");
-        }
-      }
-
-      if (permissions.allow.env) {
-        if (Array.isArray(permissions.allow.env)) {
-          for (const env of permissions.allow.env) {
-            args.push(`--allow-env=${env}`);
-          }
-        } else if (permissions.allow.env === true) {
-          args.push("--allow-env");
-        }
-      }
-
-      if (permissions.allow.run) {
-        if (Array.isArray(permissions.allow.run)) {
-          for (const cmd of permissions.allow.run) {
-            args.push(`--allow-run=${cmd}`);
-          }
-        } else if (permissions.allow.run === true) {
-          args.push("--allow-run");
-        }
-      }
-
-      if (permissions.allow.sys) {
-        if (Array.isArray(permissions.allow.sys)) {
-          for (const sys of permissions.allow.sys) {
-            args.push(`--allow-sys=${sys}`);
-          }
-        } else if (permissions.allow.sys === true) {
-          args.push("--allow-sys");
-        }
-      }
-    }
-
-    // Use the permanent hooks runner script
-    const runnerPath = new URL("lib/hooks-runner.ts", import.meta.url).pathname;
-    args.push(runnerPath, file, event);
-
-    // Add payload as argument if provided
+    // Parse payload from argument
+    let parsedPayload = {};
     if (payload) {
-      args.push(payload);
+      try {
+        parsedPayload = JSON.parse(payload);
+      } catch (error) {
+        console.warn("Failed to parse payload argument as JSON:", error instanceof Error ? error.message : String(error));
+      }
     }
 
-    const command = new Deno.Command("deno", {
-      args,
-      stdout: "piped",
-      stderr: "piped",
-    });
+    // Execute the appropriate hook handler directly
+    let result: HookResponse = { action: "continue" };
+    const hookHandler = hooksPlugin["on" + event];
 
-    const process = command.spawn();
-
-    const { code, stdout, stderr } = await process.output();
-
-    if (code !== 0) {
-      const errorText = new TextDecoder().decode(stderr);
-      throw new Error(`Hooks execution failed: ${errorText}`);
+    if (typeof hookHandler === 'function') {
+      try {
+        result = await hookHandler(parsedPayload) || { action: "continue" };
+      } catch (error) {
+        result = {
+          action: "continue",
+          message: `Hook execution error: ${error instanceof Error ? error.message : String(error)}`
+        };
+      }
+    } else {
+      result = {
+        action: "continue",
+        message: `No handler found for event type: ${event}`
+      };
     }
 
-    const output = new TextDecoder().decode(stdout);
-    console.log(output);
+    // Output the result
+    console.log(JSON.stringify(result));
   } catch (error) {
     throw new Error(
       `Failed to run hooks file: ${
@@ -431,9 +375,11 @@ async function runHooksFile(file: string, event: string, payload?: string) {
 
 function getHooksTemplate(): string {
   return dedent`
-    import { hooks } from "../main.ts";
-
-    export default hooks({
+    // Simple hooks configuration that doesn't require imports
+    export default {
+      name: "inline-hooks",
+      version: "0.0.0",
+      
       // Deno permissions that are allowed
       permissions: {
         allow: {
@@ -447,8 +393,13 @@ function getHooksTemplate(): string {
       onPreToolUse(payload) {
         console.log(\`📝 About to use tool: \${payload.tool_name}\`);
         return { action: "continue" };
+      },
+
+      onSessionStart(payload) {
+        console.log(\`🚀 Session started in: \${payload?.context?.working_directory || 'unknown'}\`);
+        return { action: "continue" };
       }
-    });
+    };
 `;
 }
 

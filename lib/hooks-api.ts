@@ -266,15 +266,13 @@ export interface HooksConfig {
 // Main hooks API function
 export function hooks(
   { plugins, permissions, ...config }: HooksConfig,
-): HooksManager {
-  const plugin: HooksPlugin = {
+): HooksPlugin & { permissions?: Permissions } {
+  const plugin: HooksPlugin & { permissions?: Permissions } = {
     name: "inline-hooks",
     version: "0.0.0",
+    permissions,
     ...config,
   };
 
-  return new HooksManager({
-    permissions,
-    plugins: [plugin, ...(plugins || [])],
-  });
+  return plugin;
 }
