@@ -142,7 +142,9 @@ export class HooksManager {
       console.error(`Invalid payload for event ${eventType}:`, error);
       return [{
         action: "continue",
-        message: `Invalid payload: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Invalid payload: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       }];
     }
 
@@ -208,7 +210,9 @@ export class HooksManager {
             );
             results.push({
               action: "continue",
-              message: `Plugin returned invalid response: ${error instanceof Error ? error.message : String(error)}`,
+              message: `Plugin returned invalid response: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
             });
           }
         }
@@ -216,7 +220,9 @@ export class HooksManager {
         console.error(`Plugin ${plugin.name} error:`, error);
         results.push({
           action: "continue",
-          message: `Plugin error: ${error instanceof Error ? error.message : String(error)}`,
+          message: `Plugin error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
         });
       }
     }

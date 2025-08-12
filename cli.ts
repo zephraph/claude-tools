@@ -3,18 +3,17 @@ import { Command } from "commander";
 import { join } from "@std/path";
 import { ensureDir, exists } from "@std/fs";
 import dedent from "dedent";
+import { HooksConfig } from "./lib/schemas/index.ts";
 
 const program = new Command();
 
 program
-  .name("claude-tools")
-  .description("CLI for managing Claude tools and hooks")
+  .name("claude-hooks")
+  .description("CLI for managing Claude hooks")
   .version("1.0.0");
 
-const hooks = program.command("hooks").description("Manage Claude hooks");
-
 // Init hooks command
-hooks
+program
   .command("init")
   .description("Initialize hooks setup")
   .option(
@@ -26,13 +25,16 @@ hooks
     try {
       await initHooks(options);
     } catch (error) {
-      console.error("Error initializing hooks:", error instanceof Error ? error.message : String(error));
+      console.error(
+        "Error initializing hooks:",
+        error instanceof Error ? error.message : String(error),
+      );
       Deno.exit(1);
     }
   });
 
 // Run hooks command
-hooks
+program
   .command("run <file> <event>")
   .description("Run hooks file for a specific event")
   .option("-p, --payload <payload>", "JSON payload to pass to hooks")
@@ -41,11 +43,60 @@ hooks
       try {
         await runHooksFile(file, event, options.payload);
       } catch (error) {
-        console.error("Error running hooks:", error instanceof Error ? error.message : String(error));
+        console.error(
+          "Error running hooks:",
+          error instanceof Error ? error.message : String(error),
+        );
         Deno.exit(1);
       }
     },
   );
+
+// Smart merge function that preserves existing hooks unless they use claude-hooks
+function smartMergeSettings(existing: any, newSettings: HooksConfig): any {
+  const result = { ...existing };
+
+  // If no existing hooks, just use new settings
+  if (!existing.hooks) {
+    return newSettings;
+  }
+
+  // For each hook type in the new settings
+  for (const [hookType, newHooks] of Object.entries(newSettings.hooks)) {
+    const existingHooks = existing.hooks[hookType] || [];
+
+    // Filter out existing hooks that use claude-hooks commands
+    const preservedHooks = existingHooks.filter((hook: any) => {
+      if (hook.type === "command" && 
+          (hook.command?.startsWith("claude-hooks") || 
+           hook.command?.includes("/claude-hooks"))) {
+        return false;
+      }
+      if (hook.hooks) {
+        // For nested hooks structure (like PreToolUse/PostToolUse)
+        return !hook.hooks.some((nestedHook: any) =>
+          nestedHook.type === "command" &&
+          (nestedHook.command?.startsWith("claude-hooks") || 
+           nestedHook.command?.includes("/claude-hooks"))
+        );
+      }
+      return true;
+    });
+
+    // Combine preserved hooks with new claude-hooks
+    result.hooks = result.hooks || {};
+    result.hooks[hookType] = [...preservedHooks, ...newHooks];
+  }
+
+  return result;
+}
+
+// Helper function to get the absolute path to the claude-hooks binary
+function getClaudeHooksPath(): string {
+  const currentScript = new URL(import.meta.url).pathname;
+  const currentDir = currentScript.replace('/cli.ts', '');
+  return join(currentDir, 'bin', 'claude-hooks');
+}
 
 // Implementation functions
 async function initHooks(options: { scope?: string }) {
@@ -122,21 +173,124 @@ async function initHooks(options: { scope?: string }) {
       console.log(`Found existing settings at: ${settingsPath}`);
     } catch (error) {
       console.warn(
-        `Warning: Could not parse existing settings: ${error instanceof Error ? error.message : String(error)}`,
+        `Warning: Could not parse existing settings: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
   }
 
   // Generate hooks configuration
   try {
+    // Verify the hooks file can be imported and has proper structure
     const hooksModule = await import(`file://${hooksPath}`);
-    const hooksConfig = hooksModule.makeHooks();
+    const hooksPlugin = hooksModule.default;
 
-    // Merge with existing settings
-    const updatedSettings = {
-      ...existingSettings,
-      ...hooksConfig,
+    if (!hooksPlugin || typeof hooksPlugin !== "object") {
+      throw new Error(
+        "Hooks file must export a default hooks configuration object",
+      );
+    }
+
+    // Get the absolute path to the claude-hooks binary
+    const claudeHooksPath = getClaudeHooksPath();
+
+    // Create complete Claude Code settings configuration
+    const completeSettings: HooksConfig = {
+      // Hooks configuration
+      hooks: {
+        // Tool-based hooks use ToolMatcher format with matcher and hooks array
+        PreToolUse: [
+          {
+            matcher: ".*", // Match all tools
+            hooks: [
+              {
+                type: "command",
+                command: `${claudeHooksPath} run .claude/${hooksFile} PreToolUse`,
+              },
+            ],
+          },
+        ],
+        PostToolUse: [
+          {
+            matcher: ".*", // Match all tools
+            hooks: [
+              {
+                type: "command",
+                command: `${claudeHooksPath} run .claude/${hooksFile} PostToolUse`,
+              },
+            ],
+          },
+        ],
+        // Event-based hooks also use wrapper with hooks array (no matcher though)
+        Notification: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: `${claudeHooksPath} run .claude/${hooksFile} Notification`,
+              },
+            ],
+          },
+        ],
+        UserPromptSubmit: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: `${claudeHooksPath} run .claude/${hooksFile} UserPromptSubmit`,
+              },
+            ],
+          },
+        ],
+        Stop: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: `${claudeHooksPath} run .claude/${hooksFile} Stop`,
+              },
+            ],
+          },
+        ],
+        SubagentStop: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: `${claudeHooksPath} run .claude/${hooksFile} SubagentStop`,
+              },
+            ],
+          },
+        ],
+        PreCompact: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: `${claudeHooksPath} run .claude/${hooksFile} PreCompact`,
+              },
+            ],
+          },
+        ],
+        SessionStart: [
+          {
+            hooks: [
+              {
+                type: "command",
+                command: `${claudeHooksPath} run .claude/${hooksFile} SessionStart`,
+              },
+            ],
+          },
+        ],
+      },
     };
+
+    // Smart merge with existing settings
+    const updatedSettings = smartMergeSettings(
+      existingSettings,
+      completeSettings,
+    );
 
     await Deno.writeTextFile(
       settingsPath,
@@ -145,23 +299,19 @@ async function initHooks(options: { scope?: string }) {
     console.log(`Updated hooks configuration in: ${settingsPath}`);
   } catch (error) {
     console.warn(
-      `Warning: Could not generate hooks configuration: ${error instanceof Error ? error.message : String(error)}`,
+      `Warning: Could not generate hooks configuration: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
     );
     console.log(
       `You can run the ${hooksFile} file manually to generate the configuration.`,
     );
-
-    // Create empty settings file if it doesn't exist
-    if (!await exists(settingsPath)) {
-      await Deno.writeTextFile(settingsPath, JSON.stringify({}, null, 2));
-      console.log(`Created empty settings file: ${settingsPath}`);
-    }
   }
 
   console.log(`\n✅ Hooks initialized in ${location} settings!`);
   console.log(`📍 Location: ${description}`);
   console.log(`\nTo test your hooks:`);
-  console.log(`  claude-tools hooks run ${hooksPath} SessionStart`);
+  console.log(`  ${getClaudeHooksPath()} run ${hooksPath} SessionStart`);
 }
 
 async function runHooksFile(file: string, event: string, payload?: string) {
@@ -244,91 +394,44 @@ async function runHooksFile(file: string, event: string, payload?: string) {
       }
     }
 
-    // Create a temporary script that executes the hook
-    const tempScript = `
-import { hooks } from "./main.ts";
+    // Use the permanent hooks runner script
+    const runnerPath = new URL("lib/hooks-runner.ts", import.meta.url).pathname;
+    args.push(runnerPath, file, event);
 
-// Import the hooks configuration
-const hooksModule = await import("file://${Deno.cwd()}/${file}");
-const hooksPlugin = hooksModule.default;
-
-// Parse payload from stdin or use empty object
-let payload = {};
-try {
-  const stdinText = await new Response(Deno.stdin.readable).text();
-  if (stdinText.trim()) {
-    payload = JSON.parse(stdinText);
-  }
-} catch (error) {
-  console.warn("Failed to parse stdin as JSON:", error instanceof Error ? error.message : String(error));
-}
-
-// Execute the appropriate hook handler
-const eventType = "${event}";
-let result = { action: "continue" };
-
-if (hooksPlugin["on" + eventType]) {
-  try {
-    result = await hooksPlugin["on" + eventType](payload) || { action: "continue" };
-  } catch (error) {
-    result = {
-      action: "continue",
-      message: \`Hook execution error: \${error instanceof Error ? error.message : String(error)}\`
-    };
-  }
-}
-
-// Output the result
-console.log(JSON.stringify(result));
-`;
-
-    // Write temporary script
-    const tempPath = await Deno.makeTempFile({ suffix: ".ts" });
-    await Deno.writeTextFile(tempPath, tempScript);
-
-    try {
-      args.push(tempPath);
-
-      const command = new Deno.Command("deno", {
-        args,
-        stdin: payload ? "piped" : "null",
-        stdout: "piped",
-        stderr: "piped",
-      });
-
-      const process = command.spawn();
-
-      if (payload) {
-        const writer = process.stdin.getWriter();
-        await writer.write(new TextEncoder().encode(payload));
-        await writer.close();
-      }
-
-      const { code, stdout, stderr } = await process.output();
-
-      if (code !== 0) {
-        const errorText = new TextDecoder().decode(stderr);
-        throw new Error(`Hooks execution failed: ${errorText}`);
-      }
-
-      const output = new TextDecoder().decode(stdout);
-      console.log(output);
-    } finally {
-      // Clean up temporary file
-      try {
-        await Deno.remove(tempPath);
-      } catch {
-        // Ignore cleanup errors
-      }
+    // Add payload as argument if provided
+    if (payload) {
+      args.push(payload);
     }
+
+    const command = new Deno.Command("deno", {
+      args,
+      stdout: "piped",
+      stderr: "piped",
+    });
+
+    const process = command.spawn();
+
+    const { code, stdout, stderr } = await process.output();
+
+    if (code !== 0) {
+      const errorText = new TextDecoder().decode(stderr);
+      throw new Error(`Hooks execution failed: ${errorText}`);
+    }
+
+    const output = new TextDecoder().decode(stdout);
+    console.log(output);
   } catch (error) {
-    throw new Error(`Failed to run hooks file: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Failed to run hooks file: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
   }
 }
 
 function getHooksTemplate(): string {
   return dedent`
-    import { hooks } from "claude-tools";
+    import { hooks } from "../main.ts";
 
     export default hooks({
       // Deno permissions that are allowed

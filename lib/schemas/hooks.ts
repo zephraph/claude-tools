@@ -73,6 +73,11 @@ export const ToolMatcherSchema = z.object({
   hooks: z.array(HookConfigSchema),
 });
 
+// Event hook wrapper (no matcher, just hooks array)
+export const EventHookWrapperSchema = z.object({
+  hooks: z.array(HookConfigSchema),
+});
+
 // Event-specific schemas
 export const PreToolUseHookSchema = z.object({
   PreToolUse: z.array(ToolMatcherSchema),
@@ -83,27 +88,27 @@ export const PostToolUseHookSchema = z.object({
 });
 
 export const NotificationHookSchema = z.object({
-  Notification: z.array(HookConfigSchema),
+  Notification: z.array(EventHookWrapperSchema),
 });
 
 export const UserPromptSubmitHookSchema = z.object({
-  UserPromptSubmit: z.array(HookConfigSchema),
+  UserPromptSubmit: z.array(EventHookWrapperSchema),
 });
 
 export const StopHookSchema = z.object({
-  Stop: z.array(HookConfigSchema),
+  Stop: z.array(EventHookWrapperSchema),
 });
 
 export const SubagentStopHookSchema = z.object({
-  SubagentStop: z.array(HookConfigSchema),
+  SubagentStop: z.array(EventHookWrapperSchema),
 });
 
 export const PreCompactHookSchema = z.object({
-  PreCompact: z.array(HookConfigSchema),
+  PreCompact: z.array(EventHookWrapperSchema),
 });
 
 export const SessionStartHookSchema = z.object({
-  SessionStart: z.array(HookConfigSchema),
+  SessionStart: z.array(EventHookWrapperSchema),
 });
 
 // Union of all hook event types
@@ -123,12 +128,12 @@ export const HooksConfigSchema = z.object({
   hooks: z.object({
     PreToolUse: z.array(ToolMatcherSchema).optional(),
     PostToolUse: z.array(ToolMatcherSchema).optional(),
-    Notification: z.array(HookConfigSchema).optional(),
-    UserPromptSubmit: z.array(HookConfigSchema).optional(),
-    Stop: z.array(HookConfigSchema).optional(),
-    SubagentStop: z.array(HookConfigSchema).optional(),
-    PreCompact: z.array(HookConfigSchema).optional(),
-    SessionStart: z.array(HookConfigSchema).optional(),
+    Notification: z.array(EventHookWrapperSchema).optional(),
+    UserPromptSubmit: z.array(EventHookWrapperSchema).optional(),
+    Stop: z.array(EventHookWrapperSchema).optional(),
+    SubagentStop: z.array(EventHookWrapperSchema).optional(),
+    PreCompact: z.array(EventHookWrapperSchema).optional(),
+    SessionStart: z.array(EventHookWrapperSchema).optional(),
   }),
 });
 

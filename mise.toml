@@ -1,12 +1,16 @@
 [tools]
 deno = "2.4.3"
 
+[env]
+_.path = "./bin"
+
 [tasks]
 lint = "deno lint"
 "lint:fix" = "deno lint --fix"
 check = "deno check"
 fmt = "deno fmt"
 "fmt:check" = "deno fmt --check"
+compile = "deno compile -o bin/claude-hooks -A cli.ts"
 
 [tasks.verify]
 depends = ["lint", "check", "fmt:check"]
